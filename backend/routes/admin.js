@@ -70,7 +70,7 @@ router.get('/dashboard', adminAuth, async (req, res) => {
     
     // Neueste Anmeldungen
     const [latestRegistrations] = await db.query(`
-      SELECT r.id, r.registration_time, p.name, p.email, c.title_de, s.date_time
+      SELECT r.id, r.registration_time, p.name, p.email, c.title_de, c.title_en, s.date_time
       FROM registrations r
       JOIN persons p ON r.person_id = p.id
       JOIN sessions s ON r.session_id = s.id

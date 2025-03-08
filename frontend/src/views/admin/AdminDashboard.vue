@@ -14,7 +14,7 @@
                 <div class="col-md-3">
                     <div class="card bg-primary text-white">
                         <div class="card-body">
-                            <h5 class="card-title">Kurse</h5>
+                            <h5 class="card-title">{{ $t('common.courses') }}</h5>
                             <h2 class="card-text">{{ dashboardData.counts.courses }}</h2>
                             <router-link to="/admin/courses" class="btn btn-light btn-sm mt-2">Verwalten</router-link>
                         </div>
@@ -23,7 +23,7 @@
                 <div class="col-md-3">
                     <div class="card bg-success text-white">
                         <div class="card-body">
-                            <h5 class="card-title">Termine</h5>
+                            <h5 class="card-title">{{ $t('common.sessions') }}</h5>
                             <h2 class="card-text">{{ dashboardData.counts.sessions }}</h2>
                             <router-link to="/admin/sessions" class="btn btn-light btn-sm mt-2">Verwalten</router-link>
                         </div>
@@ -32,17 +32,18 @@
                 <div class="col-md-3">
                     <div class="card bg-info text-white">
                         <div class="card-body">
-                            <h5 class="card-title">Anmeldungen</h5>
+                            <h5 class="card-title">{{ $t('common.registrations') }}</h5>
                             <h2 class="card-text">{{ dashboardData.counts.registrations }}</h2>
-                            <router-link to="/admin/registrations"
-                                class="btn btn-light btn-sm mt-2">Verwalten</router-link>
+                            <button class="btn btn-light btn-sm mt-2" disabled>Verwalten</button>
+                            <!-- <router-link to="/admin/registrations"
+                                class="btn btn-light btn-sm mt-2">Verwalten</router-link> -->
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="card bg-warning text-dark">
                         <div class="card-body">
-                            <h5 class="card-title">Personen</h5>
+                            <h5 class="card-title">{{ $t('common.persons') }}</h5>
                             <h2 class="card-text">{{ dashboardData.counts.persons }}</h2>
                             <router-link to="/admin/persons" class="btn btn-light btn-sm mt-2">Verwalten</router-link>
                         </div>
@@ -58,11 +59,11 @@
                         <table class="table table-striped">
                             <thead>
                                 <tr>
-                                    <th>Datum</th>
-                                    <th>Name</th>
-                                    <th>E-Mail</th>
-                                    <th>Kurs</th>
-                                    <th>Termin</th>
+                                    <th>{{ $t('common.date') }}</th>
+                                    <th>{{ $t('registration.name') }}</th>
+                                    <th>{{ $t('common.email') }}</th>
+                                    <th>{{ $t('common.course') }}</th>
+                                    <th>{{ $t('common.session') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -70,7 +71,7 @@
                                     <td>{{ formatDateTime(reg.registration_time) }}</td>
                                     <td>{{ reg.name }}</td>
                                     <td>{{ reg.email }}</td>
-                                    <td>{{ reg.title_de }}</td>
+                                    <td>{{ currentLanguage === 'de' ? reg.title_de : reg.title_en }}</td>
                                     <td>{{ formatDateTime(reg.date_time) }}</td>
                                 </tr>
                             </tbody>
@@ -99,6 +100,11 @@ export default {
             loading: true,
             error: null
         };
+    },
+    computed: {
+      currentLanguage() {
+        return this.$i18n.locale;
+      }
     },
     async created() {
         try {

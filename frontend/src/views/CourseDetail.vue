@@ -42,10 +42,10 @@
           <table class="table table-striped">
             <thead>
               <tr>
-                <th>Datum & Uhrzeit</th>
-                <th>Ort</th>
-                <th>Verfügbare Plätze</th>
-                <th>Aktionen</th>
+                <th>{{ $t('courses.session') }}</th>
+                <th>{{ $t('courses.location') }}</th>
+                <th>{{ $t('courses.availablePlaces') }}</th>
+                <th>{{ $t('courses.actions') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -54,7 +54,8 @@
                 <td>{{ session.location }}</td>
                 <td>
                   <span v-if="sessionAvailability[session.id]">
-                    {{ sessionAvailability[session.id].available }} / {{ session.max_participants }}
+                    <!-- {{ sessionAvailability[session.id].available }} / {{ session.max_participants }} -->
+                      {{ sessionAvailability[session.id].available }}
                   </span>
                   <div v-else class="spinner-border spinner-border-sm" role="status">
                     <span class="visually-hidden">{{ $t('common.loading') }}</span>
@@ -138,8 +139,8 @@
       },
       async loadSessionAvailability(sessionId) {
         try {
-          const response = await api.getSession(sessionId + '/available');
-          this.$set(this.sessionAvailability, sessionId, response.data);
+          const response = await api.getSession(sessionId);
+          this.sessionAvailability[sessionId] = response.data;
         } catch (error) {
           console.error(`Fehler beim Laden der Verfügbarkeit für Termin ${sessionId}:`, error);
         }

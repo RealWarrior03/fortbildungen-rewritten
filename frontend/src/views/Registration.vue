@@ -19,8 +19,8 @@
                 <strong>Kurs:</strong> {{ currentLanguage === 'de' ? course.title_de : course.title_en }}<br>
                 <strong>Termin:</strong> {{ formatDateTime(selectedSession.date_time) }}<br>
                 <strong>Ort:</strong> {{ selectedSession.location }}<br>
-                <strong>Name:</strong> {{ personData.name }}<br>
-                <strong>E-Mail:</strong> {{ personData.email }}
+                <strong>Name:</strong> {{ selectedPerson?.name }}<br>
+                <strong>E-Mail:</strong> {{ selectedPerson?.email }}
             </p>
             <p class="mt-3">
                 <router-link to="/courses" class="btn btn-primary">
@@ -43,25 +43,50 @@
             <form @submit.prevent="submitRegistration">
                 <div class="row">
                     <div class="col-md-6">
-                        <h3>{{ $t('registration.personInfo') }}</h3>
-
+                        <h3>{{ $t('registration.personSelection') }}</h3>
+                        
                         <div class="mb-3">
-                            <label for="name" class="form-label">{{ $t('registration.name') }} *</label>
-                            <input type="text" class="form-control" id="name" v-model="personData.name" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="email" class="form-label">{{ $t('registration.email') }} *</label>
-                            <input type="email" class="form-control" id="email" v-model="personData.email" required
-                                @blur="checkExistingPerson">
-                            <div v-if="existingPerson" class="form-text text-info">
-                                Diese E-Mail-Adresse ist bereits registriert. Ihre Daten werden automatisch verwendet.
+                            <label for="personSearch" class="form-label">{{ $t('registration.searchPerson') }}</label>
+                            <div class="input-group">
+                                <input 
+                                    type="text" 
+                                    class="form-control" 
+                                    id="personSearch"
+                                    v-model="searchQuery"
+                                    @input="searchPersons"
+                                    placeholder="Name oder E-Mail eingeben..."
+                                >
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="department" class="form-label">{{ $t('registration.department') }}</label>
-                            <input type="text" class="form-control" id="department" v-model="personData.department">
+                        <div class="list-group mb-3" v-if="searchQuery && filteredPersons.length > 0">
+                            <button
+                                v-for="person in filteredPersons"
+                                :key="person.id"
+                                type="button"
+                                class="list-group-item list-group-item-action"
+                                :class="{ active: selectedPerson?.id === person.id }"
+                                @click="selectPerson(person)"
+                            >
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ person.name }}</strong><br>
+                                        <small>{{ person.email }}</small>
+                                    </div>
+                                    <small>{{ person.department }}</small>
+                                </div>
+                            </button>
+                        </div>
+
+                        <div v-if="selectedPerson" class="card mb-3">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">Ausgewählter Mitarbeiter</h6>
+                                <p class="card-text">
+                                    <strong>{{ selectedPerson.name }}</strong><br>
+                                    {{ selectedPerson.email }}<br>
+                                    {{ selectedPerson.department }}
+                                </p>
+                            </div>
                         </div>
                     </div>
 
@@ -107,6 +132,8 @@
 </template>
 <script>
 import api from '@/services/api';
+import { debounce } from 'lodash';
+
 export default {
     name: 'CourseRegistration',
     data() {
@@ -115,12 +142,10 @@ export default {
             sessions: [],
             sessionAvailability: {},
             selectedSessionId: '',
-            personData: {
-                name: '',
-                email: '',
-                department: ''
-            },
-            existingPerson: null,
+            searchQuery: '',
+            persons: [],
+            filteredPersons: [],
+            selectedPerson: null,
             loading: true,
             loadingSessions: true,
             submitting: false,
@@ -134,9 +159,7 @@ export default {
             return this.$i18n.locale;
         },
         isFormValid() {
-            return this.personData.name &&
-                this.personData.email &&
-                this.selectedSessionId;
+            return this.selectedPerson && this.selectedSessionId;
         },
         availableSessions() {
             return this.sessions.filter(session => {
@@ -149,6 +172,7 @@ export default {
         }
     },
     async created() {
+        this.debouncedSearch = debounce(this.performSearch, 300);
         const courseId = this.$route.params.courseId;
         const sessionId = this.$route.query.session;
         if (sessionId) {
@@ -166,6 +190,26 @@ export default {
         }
     },
     methods: {
+        async searchPersons() {
+            if (this.searchQuery.length < 2) {
+                this.filteredPersons = [];
+                return;
+            }
+            this.debouncedSearch();
+        },
+        async performSearch() {
+            try {
+                const response = await api.searchPersons(this.searchQuery);
+                this.filteredPersons = response.data;
+            } catch (error) {
+                console.error('Fehler bei der Personensuche:', error);
+            }
+        },
+        selectPerson(person) {
+            this.selectedPerson = person;
+            this.searchQuery = '';
+            this.filteredPersons = [];
+        },
         async loadSessions(courseId) {
             try {
                 const response = await api.getSessionsByCourse(courseId);
@@ -183,8 +227,8 @@ export default {
         },
         async loadSessionAvailability(sessionId) {
             try {
-                const response = await api.getSession(sessionId + '/available');
-                this.$set(this.sessionAvailability, sessionId, response.data);
+                const response = await api.getSession(sessionId);
+                this.sessionAvailability[sessionId] = response.data;
             } catch (error) {
                 console.error('Fehler beim Laden der Verfügbarkeit für Termin ${ sessionId }:', error);
             }
@@ -196,42 +240,19 @@ export default {
                 timeStyle: 'short'
             }).format(date);
         },
-        async checkExistingPerson() {
-            if (!this.personData.email) return;
-            try {
-                const response = await api.get('/persons/search?email=' + encodeURIComponent(this.personData.email));
-                this.existingPerson = response.data;
-                if (this.existingPerson) {
-                    this.personData.name = this.existingPerson.name;
-                    this.personData.department = this.existingPerson.department;
-                }
-            } catch (error) {
-                // Person existiert nicht, das ist in Ordnung
-                this.existingPerson = null;
-            }
-        },
         async submitRegistration() {
             if (!this.isFormValid) return;
             this.submitting = true;
             try {
-                // 1. Person erstellen oder abrufen
-                let personId;
-                if (this.existingPerson) {
-                    personId = this.existingPerson.id;
-                } else {
-                    const personResponse = await api.createPerson(this.personData);
-                    personId = personResponse.data.personId;
-                }
-                // 2. Anmeldung erstellen
                 const registrationData = {
-                    person_id: personId,
+                    person_id: this.selectedPerson.id,
                     session_id: this.selectedSessionId
                 };
                 await api.registerForSession(registrationData);
                 this.registrationSuccess = true;
             } catch (error) {
                 console.error('Fehler bei der Anmeldung:', error);
-                if (error.response && error.response.data && error.response.data.message) {
+                if (error.response?.data?.message) {
                     this.error = error.response.data.message;
                 } else {
                     this.error = 'Fehler bei der Anmeldung. Bitte versuchen Sie es später erneut.';
@@ -243,3 +264,23 @@ export default {
     }
 };
 </script>
+
+<style scoped>
+.list-group {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.list-group-item {
+    cursor: pointer;
+}
+
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+.list-group-item.active {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+</style>

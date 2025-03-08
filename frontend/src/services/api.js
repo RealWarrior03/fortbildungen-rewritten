@@ -26,28 +26,40 @@ export default {
   getCourse(id) {
     return api.get(`/courses/${id}`);
   },
+  getAllCourses() {
+    return api.get('/admin/courses');
+  },
   createCourse(courseData) {
-    return api.post('/courses', courseData);
+    return api.post('/admin/courses', courseData);
   },
   updateCourse(id, courseData) {
-    return api.put(`/courses/${id}`, courseData);
+    return api.put(`/admin/courses/${id}`, courseData);
   },
   deleteCourse(id) {
-    return api.delete(`/courses/${id}`);
+    return api.delete(`/admin/courses/${id}`);
   },
 
   // Termine
+  getSession(id) {
+    return api.get(`/sessions/${id}/available`);
+  },
   getSessionsByCourse(courseId) {
     return api.get(`/sessions/course/${courseId}`);
   },
+  getSessions() {
+    return api.get('/admin/sessions');
+  },
+  getSessionParticipants(sessionId) {
+    return api.get(`/admin/sessions/${sessionId}/participants`);
+  },
   createSession(sessionData) {
-    return api.post('/sessions', sessionData);
+    return api.post('/admin/sessions', sessionData);
   },
   updateSession(id, sessionData) {
-    return api.put(`/sessions/${id}`, sessionData);
+    return api.put(`/admin/sessions/${id}`, sessionData);
   },
   deleteSession(id) {
-    return api.delete(`/sessions/${id}`);
+    return api.delete(`/admin/sessions/${id}`);
   },
 
   // Anmeldungen
@@ -66,10 +78,19 @@ export default {
 
   // Personen
   getPersons() {
-    return api.get('/persons');
+    return api.get('/admin/persons');
+  },
+  getPerson(id) {
+    return api.get(`/admin/persons/${id}`);
   },
   createPerson(personData) {
-    return api.post('/persons', personData);
+    return api.post('/admin/persons', personData);
+  },
+  updatePerson(id, personData) {
+    return api.put(`/admin/persons/${id}`, personData);
+  },
+  deletePerson(id) {
+    return api.delete(`/admin/persons/${id}`);
   },
 
   // Admin
@@ -78,5 +99,9 @@ export default {
   },
   getAdminDashboard() {
     return api.get('/admin/dashboard');
+  },
+
+  searchPersons(query) {
+    return api.get(`/persons/search?q=${encodeURIComponent(query)}`);
   }
 };

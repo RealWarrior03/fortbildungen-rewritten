@@ -22,12 +22,18 @@ const sessionRoutes = require('./routes/sessions');
 const registrationRoutes = require('./routes/registrations');
 const personRoutes = require('./routes/persons');
 const adminRoutes = require('./routes/admin');
+const adminPersonsRouter = require('./routes/admin/persons');
+const adminCoursesRouter = require('./routes/admin/courses');
+const adminSessionsRouter = require('./routes/admin/sessions');
 
 app.use('/api/courses', courseRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/registrations', registrationRoutes);
 app.use('/api/persons', personRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/persons', adminPersonsRouter);
+app.use('/api/admin/courses', adminCoursesRouter);
+app.use('/api/admin/sessions', adminSessionsRouter);
 
 // Basis-Route
 app.get('/', (req, res) => {

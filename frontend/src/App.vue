@@ -18,7 +18,7 @@
             </li>
             <li class="nav-item">
               <a class="nav-link" href="#" @click.prevent="toggleLanguage">
-                {{ currentLanguage === 'de' ? 'EN' : 'DE' }}
+                {{ currentLanguage === 'de' ? 'DE' : 'EN' }}
               </a>
             </li>
           </ul>
