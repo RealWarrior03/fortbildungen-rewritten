@@ -65,7 +65,6 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
     const connection = await db.getConnection();
     try {
-        console.log('Starting transaction');
 
         await connection.beginTransaction();
 
@@ -81,7 +80,6 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ message: 'Pflichtfelder fehlen' });
         }
 
-        console.log('Checking course');
 
         // Prüfen ob der Kurs existiert
         const [courses] = await connection.query(
@@ -98,7 +96,6 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ message: 'Termin muss in der Zukunft liegen' });
         }
 
-        console.log('Creating session:');
 
         const [result] = await connection.query(`
             INSERT INTO sessions (
@@ -116,7 +113,6 @@ router.post('/', async (req, res) => {
 
         await connection.commit();
 
-        console.log('Session created:', result.id);
 
         const [newSession] = await connection.query(
             'SELECT * FROM sessions WHERE id = ?',
