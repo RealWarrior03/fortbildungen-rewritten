@@ -27,6 +27,7 @@ const adminPersonsRouter = require('./routes/admin/persons');
 const adminCoursesRouter = require('./routes/admin/courses');
 const adminSessionsRouter = require('./routes/admin/sessions');
 
+// API-Routen
 app.use('/api/courses', courseRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/registrations', registrationRoutes);
@@ -36,9 +37,17 @@ app.use('/api/admin/persons', adminPersonsRouter);
 app.use('/api/admin/courses', adminCoursesRouter);
 app.use('/api/admin/sessions', adminSessionsRouter);
 
-// Basis-Route
-app.get('/', (req, res) => {
-  res.send('Fortbildungsanmeldungssystem API');
+// Statische Dateien aus dem Frontend-Build-Verzeichnis servieren
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
+// Alle anderen Anfragen zum Frontend weiterleiten (für SPA-Routing)
+app.get('*', (req, res) => {
+  // Nur Anfragen, die nicht mit /api beginnen, zum Frontend weiterleiten
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+  } else {
+    res.status(404).json({ message: 'API-Endpunkt nicht gefunden' });
+  }
 });
 
 // Server starten
