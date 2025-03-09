@@ -1,10 +1,11 @@
 // const express = require('express');
-import express from 'express';
+const express = require('express');
 const router = express.Router();
 // const db = require('../../config/database');
-import db from '../../config/database.js';
+const db = require('../../config/database');
 // const adminAuth = require('../../middleware/adminAuth');
-import adminAuth from '../../middleware/adminAuth.js';
+const adminAuth = require('../../middleware/adminAuth');
+const { format } = require('date-fns');
 
 // Alle Routen mit Admin-Auth schützen
 router.use(adminAuth);
@@ -265,5 +266,4 @@ router.get('/:id/participants', async (req, res) => {
     }
 });
 
-// module.exports = router; 
-export default router;
+module.exports = router; 

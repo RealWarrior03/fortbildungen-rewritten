@@ -9,6 +9,7 @@ CREATE TABLE persons (
     email VARCHAR(100) NOT NULL,
     department VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY (email)
 );
 
@@ -58,5 +59,5 @@ CREATE TABLE admins (
 );
 
 -- Beispiel-Admin einfügen (Passwort: admin123)
-INSERT INTO admins (username, password_hash, email)
-VALUES ('admin', '$2a$12$Ojf6Eq2qq.FODBzIaDN2NeTIa.O22A82bIH1p5264flru7JC29pfK', 'admin@example.com'); 
+/*INSERT INTO admins (username, password_hash, email)
+VALUES ('admin', '$2a$12$Ojf6Eq2qq.FODBzIaDN2NeTIa.O22A82bIH1p5264flru7JC29pfK', 'admin@example.com');*/
