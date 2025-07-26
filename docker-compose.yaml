@@ -14,5 +14,17 @@ services:
       - mysql_data:/var/lib/mysql
       - ./backend/database.sql:/docker-entrypoint-initdb.d/init.sql
 
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fortbildung_server
+    ports:
+      - "${SERVER_PORT}:3000"
+    #volumes:
+    #  - ./backend:/app
+    environment:
+      - NODE_ENV=production
+
 volumes:
   mysql_data:
