@@ -1,30 +1,44 @@
 services:
   db:
     image: mysql:8.0
-    container_name: fortbildung_db
+    container_name: fortbildungen_db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "${DB_PORT}:3306"
+      - "0.0.0.0:${DB_PORT}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./backend/database.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - fortbildungen_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   server:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: fortbildung_server
+    container_name: fortbildungen_server
     ports:
-      - "${SERVER_PORT}:3000"
+      - "0.0.0.0:${SERVER_PORT}:3000"
     #volumes:
     #  - ./backend:/app
     environment:
       - NODE_ENV=production
+      - DB_HOST=db
+    networks:
+      - fortbildungen_network
 
 volumes:
   mysql_data:
+
+networks:
+  fortbildungen_network:
+    driver: bridge

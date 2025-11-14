@@ -1,13 +1,14 @@
 require('dotenv').config();
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const db = require('../config/database');
 
 async function createAdmin(username, password, email) {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+    console.log(hashedPassword);
+
     await db.query(
-      'INSERT INTO admins (username, password_hash, email, created_at) VALUES (?, ?, ?, NOW())',
+      'INSERT INTO admins (username, password_hash, email) VALUES (?, ?, ?)',
       [username, hashedPassword, email]
     );
     
