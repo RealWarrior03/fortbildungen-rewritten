@@ -26,11 +26,8 @@
               </p>
             </div>
             <div class="card-footer bg-white border-top-0">
-              <router-link :to="`/courses/${course.id}`" class="btn btn-outline-primary me-2">
-                {{ $t('courses.details') }}
-              </router-link>
-              <router-link :to="`/register/${course.id}`" class="btn btn-primary">
-                {{ $t('courses.register') }}
+              <router-link :to="`/courses/${course.id}`" class="btn btn-primary">
+                {{ currentLanguage === 'de' ? 'Termine ansehen' : 'View sessions' }}
               </router-link>
             </div>
           </div>

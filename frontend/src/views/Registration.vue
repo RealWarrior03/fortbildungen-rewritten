@@ -78,17 +78,21 @@
                             <label for="session" class="form-label">Termin </label>
                             <select class="form-select" id="session" v-model="selectedSessionId" required>
                                 <option value="" disabled>Bitte wählen Sie einen Termin</option>
-                                <option v-for="session in availableSessions" :key="session.id" :value="session.id">
+                                <option
+                                    v-for="session in sessions"
+                                    :key="session.id"
+                                    :value="session.id"
+                                    :disabled="!isSessionBookable(session.id)"
+                                >
                                     {{ formatDateTime(session.date_time) }} - {{ session.location }}
-                                    ({{ sessionAvailability[session.id] ? sessionAvailability[session.id].available :
-                                    '?' }} Plätze frei)
+                                    ({{ getAvailableSeats(session.id) }} Plätze frei{{ !isSessionBookable(session.id) ? ' - ausgebucht' : '' }})
                                 </option>
                             </select>
                         </div>
                     </div>
                 </div>
                 <div class="mt-4">
-                    <button type="submit" class="btn btn-primary" :disabled="submitting || !isFormValid">
+                    <button type="submit" class="btn btn-primary" :disabled="submitting || !isFormValid || !isSessionBookable(selectedSessionId)">
                         <span v-if="submitting" class="spinner-border spinner-border-sm me-2" role="status"></span>
                         {{ $t('common.submit') }}
                     </button>
@@ -126,12 +130,6 @@ export default {
         },
         isFormValid() {
             return this.currentUser && this.selectedSessionId;
-        },
-        availableSessions() {
-            return this.sessions.filter(session => {
-                const availability = this.sessionAvailability[session.id];
-                return !availability || availability.available > 0;
-            });
         },
         selectedSession() {
             return this.sessions.find(s => s.id === this.selectedSessionId) || {};
@@ -198,8 +196,29 @@ export default {
                 timeStyle: 'short'
             }).format(date);
         },
+        getAvailableSeats(sessionId) {
+            const availability = this.sessionAvailability[sessionId];
+            if (!availability || typeof availability.available !== 'number') {
+                return 0;
+            }
+
+            return availability.available;
+        },
+        isSessionBookable(sessionId) {
+            const availability = this.sessionAvailability[sessionId];
+            if (!availability || typeof availability.available !== 'number') {
+                return false;
+            }
+
+            return availability.available > 0;
+        },
         async submitRegistration() {
             if (!this.isFormValid) return;
+            if (!this.isSessionBookable(this.selectedSessionId)) {
+                this.error = 'Dieser Termin ist bereits ausgebucht.';
+                return;
+            }
+
             this.submitting = true;
             try {
                 const registrationData = {
