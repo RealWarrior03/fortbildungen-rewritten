@@ -20,6 +20,7 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
+    "ldapts": "^8.0.9",
     "mysql2": "^3.12.0",
     "require": "^2.4.20"
   },

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 const adminAuth = require('../middleware/adminAuth');
+const userAuth = require('../middleware/userAuth');
 
 // Alle Personen abrufen (nur Admin)
 router.get('/', adminAuth, async (req, res) => {
@@ -36,6 +37,27 @@ router.get('/search', async (req, res) => {
   } catch (error) {
     console.error('Fehler bei der Personensuche:', error);
     res.status(500).json({ message: 'Fehler bei der Personensuche' });
+  }
+});
+
+// Aktuell eingeloggtes AD-Profil abrufen
+router.get('/me', userAuth, async (req, res) => {
+  try {
+    const email = String(req.userData.email || '').trim();
+    if (!email) {
+      return res.status(400).json({ message: 'Im Token ist keine E-Mail hinterlegt.' });
+    }
+
+    return res.json({
+      subject: req.userData.subject,
+      username: req.userData.username,
+      name: String(req.userData.displayName || req.userData.username || email).trim(),
+      email,
+      department: ''
+    });
+  } catch (error) {
+    console.error('Fehler beim Abrufen des eigenen Profils:', error);
+    return res.status(500).json({ message: 'Server-Fehler beim Abrufen der Person' });
   }
 });
 

@@ -19,8 +19,8 @@
                 <strong>Kurs:</strong> {{ currentLanguage === 'de' ? course.title_de : course.title_en }}<br>
                 <strong>Termin:</strong> {{ formatDateTime(selectedSession.date_time) }}<br>
                 <strong>Ort:</strong> {{ selectedSession.location }}<br>
-                <strong>Name:</strong> {{ selectedPerson?.name }}<br>
-                <strong>E-Mail:</strong> {{ selectedPerson?.email }}
+                <strong>Name:</strong> {{ currentUser?.name }}<br>
+                <strong>E-Mail:</strong> {{ currentUser?.email }}
             </p>
             <p class="mt-3">
                 <router-link to="/courses" class="btn btn-primary">
@@ -43,50 +43,20 @@
             <form @submit.prevent="submitRegistration">
                 <div class="row">
                     <div class="col-md-6">
-                        <h3>{{ $t('registration.personSelection') }}</h3>
-                        
-                        <div class="mb-3">
-                            <label for="personSearch" class="form-label">{{ $t('registration.searchPerson') }}</label>
-                            <div class="input-group">
-                                <input 
-                                    type="text" 
-                                    class="form-control" 
-                                    id="personSearch"
-                                    v-model="searchQuery"
-                                    @input="searchPersons"
-                                    placeholder="Name oder E-Mail eingeben..."
-                                >
-                            </div>
-                        </div>
+                        <h3>Eingeloggter Benutzer</h3>
 
-                        <div class="list-group mb-3" v-if="searchQuery && filteredPersons.length > 0">
-                            <button
-                                v-for="person in filteredPersons"
-                                :key="person.id"
-                                type="button"
-                                class="list-group-item list-group-item-action"
-                                :class="{ active: selectedPerson?.id === person.id }"
-                                @click="selectPerson(person)"
-                            >
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <strong>{{ person.name }}</strong><br>
-                                        <small>{{ person.email }}</small>
-                                    </div>
-                                    <small>{{ person.department }}</small>
-                                </div>
-                            </button>
-                        </div>
-
-                        <div v-if="selectedPerson" class="card mb-3">
+                        <div v-if="currentUser" class="card mb-3">
                             <div class="card-body">
-                                <h6 class="card-subtitle mb-2 text-muted">Ausgewählter Mitarbeiter</h6>
+                                <h6 class="card-subtitle mb-2 text-muted">Anmeldung als</h6>
                                 <p class="card-text">
-                                    <strong>{{ selectedPerson.name }}</strong><br>
-                                    {{ selectedPerson.email }}<br>
-                                    {{ selectedPerson.department }}
+                                    <strong>{{ currentUser.name }}</strong><br>
+                                    {{ currentUser.email }}<br>
+                                    {{ currentUser.department || '-' }}
                                 </p>
                             </div>
+                        </div>
+                        <div v-else class="alert alert-warning">
+                            Benutzerdaten werden geladen...
                         </div>
                     </div>
 
@@ -132,7 +102,6 @@
 </template>
 <script>
 import api from '@/services/api';
-import { debounce } from 'lodash';
 
 export default {
     name: 'CourseRegistration',
@@ -142,10 +111,7 @@ export default {
             sessions: [],
             sessionAvailability: {},
             selectedSessionId: '',
-            searchQuery: '',
-            persons: [],
-            filteredPersons: [],
-            selectedPerson: null,
+            currentUser: null,
             loading: true,
             loadingSessions: true,
             submitting: false,
@@ -159,7 +125,7 @@ export default {
             return this.$i18n.locale;
         },
         isFormValid() {
-            return this.selectedPerson && this.selectedSessionId;
+            return this.currentUser && this.selectedSessionId;
         },
         availableSessions() {
             return this.sessions.filter(session => {
@@ -172,44 +138,36 @@ export default {
         }
     },
     async created() {
-        this.debouncedSearch = debounce(this.performSearch, 300);
         const courseId = this.$route.params.courseId;
         const sessionId = this.$route.query.session;
         if (sessionId) {
             this.selectedSessionId = parseInt(sessionId);
         }
         try {
-            const response = await api.getCourse(courseId);
-            this.course = response.data;
+            const [courseResponse, personResponse] = await Promise.all([
+                api.getCourse(courseId),
+                api.getCurrentUser()
+            ]);
+
+            this.course = courseResponse.data;
+            this.currentUser = {
+                name: personResponse.data.displayName || personResponse.data.username || personResponse.data.email,
+                email: personResponse.data.email || '',
+                department: ''
+            };
             this.loading = false;
             this.loadSessions(courseId);
         } catch (error) {
             console.error('Fehler beim Laden des Kurses:', error);
-            this.error = 'Fehler beim Laden des Kurses. Bitte versuchen Sie es später erneut.';
+            if (error.response && error.response.status === 401) {
+                this.error = 'Bitte zuerst anmelden.';
+            } else {
+                this.error = 'Fehler beim Laden des Kurses. Bitte versuchen Sie es später erneut.';
+            }
             this.loading = false;
         }
     },
     methods: {
-        async searchPersons() {
-            if (this.searchQuery.length < 2) {
-                this.filteredPersons = [];
-                return;
-            }
-            this.debouncedSearch();
-        },
-        async performSearch() {
-            try {
-                const response = await api.searchPersons(this.searchQuery);
-                this.filteredPersons = response.data;
-            } catch (error) {
-                console.error('Fehler bei der Personensuche:', error);
-            }
-        },
-        selectPerson(person) {
-            this.selectedPerson = person;
-            this.searchQuery = '';
-            this.filteredPersons = [];
-        },
         async loadSessions(courseId) {
             try {
                 const response = await api.getSessionsByCourse(courseId);
@@ -245,7 +203,6 @@ export default {
             this.submitting = true;
             try {
                 const registrationData = {
-                    person_id: this.selectedPerson.id,
                     session_id: this.selectedSessionId
                 };
                 await api.registerForSession(registrationData);
@@ -266,21 +223,4 @@ export default {
 </script>
 
 <style scoped>
-.list-group {
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.list-group-item {
-    cursor: pointer;
-}
-
-.list-group-item:hover {
-    background-color: #f8f9fa;
-}
-
-.list-group-item.active {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-}
 </style>

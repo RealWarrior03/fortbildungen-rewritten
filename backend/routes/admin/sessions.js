@@ -247,10 +247,12 @@ router.get('/:id/participants', async (req, res) => {
         const [participants] = await db.query(`
             SELECT 
                 r.id as registration_id,
-                p.*,
+                COALESCE(r.user_display_name, p.name) as name,
+                COALESCE(r.user_email, p.email) as email,
+                COALESCE(p.department, '') as department,
                 r.registration_time as registration_date
             FROM registrations r
-            JOIN persons p ON r.person_id = p.id
+            LEFT JOIN persons p ON r.person_id = p.id
             WHERE r.session_id = ?
             ORDER BY r.registration_time ASC
         `, [req.params.id]);

@@ -45,7 +45,6 @@
           <tr>
             <th>ID</th>
             <th>{{ $t('admin.courses.titleDe') }}</th>
-            <th>{{ $t('admin.courses.titleEn') }}</th>
             <th>{{ $t('admin.courses.sessions') }}</th>
             <th>{{ $t('admin.courses.status') }}</th>
             <th>{{ $t('admin.actions') }}</th>
@@ -55,7 +54,6 @@
           <tr v-for="course in filteredCourses" :key="course.id">
             <td>{{ course.id }}</td>
             <td>{{ course.title_de }}</td>
-            <td>{{ course.title_en }}</td>
             <td>
               <span class="badge bg-primary">
                 {{ course.session_count || 0 }}

@@ -1,46 +1,47 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const adminAuth = require('../middleware/adminAuth');
+const { authenticateAdmin } = require('../services/adAuth');
 require('dotenv').config();
 
 // Admin Login
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    
-    const [admins] = await db.query(
-      'SELECT * FROM admins WHERE username = ?',
-      [username]
-    );
-    
-    if (admins.length === 0) {
-      return res.status(401).json({ message: 'Authentifizierung fehlgeschlagen (user not found)' });
+
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Benutzername und Passwort sind erforderlich' });
     }
-    
-    const admin = admins[0];
-    const isPasswordValid = await bcrypt.compare(password, admin.password_hash);
-    
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Authentifizierung fehlgeschlagen' });
-    }
-    
+
+    const adUser = await authenticateAdmin(username, password);
+
     const token = jwt.sign(
-      { adminId: admin.id, username: admin.username },
+      {
+        sub: adUser.userPrincipalName,
+        username: adUser.username,
+        displayName: adUser.displayName,
+        groups: adUser.groups,
+        roles: ['admin']
+      },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
     );
-    
+
     res.json({
       message: 'Authentifizierung erfolgreich',
-      token: token,
-      adminId: admin.id,
-      username: admin.username
+      token,
+      username: adUser.username,
+      displayName: adUser.displayName,
+      groups: adUser.groups
     });
   } catch (error) {
     console.error('Login-Fehler:', error);
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+
     res.status(500).json({ message: 'Server-Fehler beim Login' });
   }
 });
@@ -70,9 +71,16 @@ router.get('/dashboard', adminAuth, async (req, res) => {
     
     // Neueste Anmeldungen
     const [latestRegistrations] = await db.query(`
-      SELECT r.id, r.registration_time, p.name, p.email, c.title_de, c.title_en, s.date_time
+      SELECT 
+        r.id,
+        r.registration_time,
+        COALESCE(r.user_display_name, p.name) as name,
+        COALESCE(r.user_email, p.email) as email,
+        c.title_de,
+        c.title_en,
+        s.date_time
       FROM registrations r
-      JOIN persons p ON r.person_id = p.id
+      LEFT JOIN persons p ON r.person_id = p.id
       JOIN sessions s ON r.session_id = s.id
       JOIN courses c ON s.course_id = c.id
       ORDER BY r.registration_time DESC
@@ -96,42 +104,9 @@ router.get('/dashboard', adminAuth, async (req, res) => {
 
 // Admin-Passwort ändern
 router.put('/change-password', adminAuth, async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-    const adminId = req.adminData.adminId;
-    
-    // Admin aus der Datenbank abrufen
-    const [admins] = await db.query(
-      'SELECT * FROM admins WHERE id = ?',
-      [adminId]
-    );
-    
-    if (admins.length === 0) {
-      return res.status(404).json({ message: 'Admin nicht gefunden' });
-    }
-    
-    const admin = admins[0];
-    
-    // Aktuelles Passwort überprüfen
-    const isPasswordValid = await bcrypt.compare(currentPassword, admin.password_hash);
-    
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Aktuelles Passwort ist falsch' });
-    }
-    
-    // Neues Passwort hashen und speichern
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    
-    await db.query(
-      'UPDATE admins SET password_hash = ? WHERE id = ?',
-      [hashedPassword, adminId]
-    );
-    
-    res.json({ message: 'Passwort erfolgreich geändert' });
-  } catch (error) {
-    console.error('Fehler beim Ändern des Passworts:', error);
-    res.status(500).json({ message: 'Server-Fehler beim Ändern des Passworts' });
-  }
+  return res.status(501).json({
+    message: 'Passwortwechsel erfolgt zentral im Active Directory und nicht in dieser Anwendung.'
+  });
 });
 
 module.exports = router;

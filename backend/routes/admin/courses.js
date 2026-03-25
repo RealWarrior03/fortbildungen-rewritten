@@ -64,9 +64,14 @@ router.post('/', async (req, res) => {
             active
         } = req.body;
 
+        const normalizedTitleDe = String(title_de || '').trim();
+        const normalizedTitleEn = String(title_en || '').trim() || normalizedTitleDe;
+        const normalizedDescriptionDe = String(description_de || '').trim();
+        const normalizedDescriptionEn = String(description_en || '').trim() || null;
+
         // Validierung
-        if (!title_de || !title_en) {
-            return res.status(400).json({ message: 'Titel in beiden Sprachen erforderlich' });
+        if (!normalizedTitleDe) {
+            return res.status(400).json({ message: 'Deutscher Titel ist erforderlich' });
         }
 
         const [result] = await db.query(`
@@ -78,10 +83,10 @@ router.post('/', async (req, res) => {
                 active
             ) VALUES (?, ?, ?, ?, ?)
         `, [
-            title_de,
-            title_en,
-            description_de || null,
-            description_en || null,
+            normalizedTitleDe,
+            normalizedTitleEn,
+            normalizedDescriptionDe || null,
+            normalizedDescriptionEn,
             active !== undefined ? active : true
         ]);
 
@@ -104,9 +109,14 @@ router.put('/:id', async (req, res) => {
             active
         } = req.body;
 
+        const normalizedTitleDe = String(title_de || '').trim();
+        const normalizedTitleEn = String(title_en || '').trim() || normalizedTitleDe;
+        const normalizedDescriptionDe = String(description_de || '').trim();
+        const normalizedDescriptionEn = String(description_en || '').trim() || null;
+
         // Validierung
-        if (!title_de || !title_en) {
-            return res.status(400).json({ message: 'Titel in beiden Sprachen erforderlich' });
+        if (!normalizedTitleDe) {
+            return res.status(400).json({ message: 'Deutscher Titel ist erforderlich' });
         }
 
         await db.query(`
@@ -119,10 +129,10 @@ router.put('/:id', async (req, res) => {
                 active = ?
             WHERE id = ?
         `, [
-            title_de,
-            title_en,
-            description_de || null,
-            description_en || null,
+            normalizedTitleDe,
+            normalizedTitleEn,
+            normalizedDescriptionDe || null,
+            normalizedDescriptionEn,
             active !== undefined ? active : true,
             req.params.id
         ]);

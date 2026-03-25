@@ -55,12 +55,17 @@ export default {
                 // Token im localStorage speichern
                 localStorage.setItem('adminToken', response.data.token);
                 localStorage.setItem('adminUsername', response.data.username);
+                if (response.data.displayName) {
+                    localStorage.setItem('adminDisplayName', response.data.displayName);
+                }
                 // Zur Admin-Dashboard weiterleiten
                 this.$router.push('/admin/dashboard');
             } catch (error) {
                 console.error('Login-Fehler:', error);
                 if (error.response && error.response.status === 401) {
                     this.error = 'Ungültiger Benutzername oder Passwort';
+                } else if (error.response && error.response.status === 403) {
+                    this.error = 'Ihr AD-Benutzer hat keine Admin-Berechtigung für diese Anwendung.';
                 } else {
                     this.error = 'Fehler beim Login. Bitte versuchen Sie es später erneut.';
                 }

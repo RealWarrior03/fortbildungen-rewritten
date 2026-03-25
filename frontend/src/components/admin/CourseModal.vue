@@ -16,18 +16,8 @@
             </div>
 
             <div class="mb-3">
-              <label for="title_en" class="form-label">{{ $t('admin.courseTitle') }} (EN)</label>
-              <input type="text" class="form-control" id="title_en" v-model="formData.title_en" required>
-            </div>
-
-            <div class="mb-3">
               <label for="description_de" class="form-label">{{ $t('admin.courseDescription') }} (DE)</label>
               <textarea class="form-control" id="description_de" v-model="formData.description_de" rows="3"></textarea>
-            </div>
-
-            <div class="mb-3">
-              <label for="description_en" class="form-label">{{ $t('admin.courseDescription') }} (EN)</label>
-              <textarea class="form-control" id="description_en" v-model="formData.description_en" rows="3"></textarea>
             </div>
 
             <div class="form-check mb-3">
@@ -76,10 +66,7 @@ export default {
   },
   computed: {
     isFormValid() {
-      return (
-        this.formData.title_de?.trim() &&
-        this.formData.title_en?.trim()
-      );
+      return this.formData.title_de?.trim();
     }
   },
   created() {

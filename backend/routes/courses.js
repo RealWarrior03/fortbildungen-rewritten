@@ -39,10 +39,18 @@ router.get('/:id', async (req, res) => {
 router.post('/', adminAuth, async (req, res) => {
   try {
     const { title_de, title_en, description_de, description_en, active } = req.body;
+    const normalizedTitleDe = String(title_de || '').trim();
+    const normalizedTitleEn = String(title_en || '').trim() || normalizedTitleDe;
+    const normalizedDescriptionDe = String(description_de || '').trim() || null;
+    const normalizedDescriptionEn = String(description_en || '').trim() || null;
+
+    if (!normalizedTitleDe) {
+      return res.status(400).json({ message: 'Deutscher Titel ist erforderlich' });
+    }
     
     const [result] = await db.query(
       'INSERT INTO courses (title_de, title_en, description_de, description_en, active) VALUES (?, ?, ?, ?, ?)',
-      [title_de, title_en, description_de, description_en, active || true]
+      [normalizedTitleDe, normalizedTitleEn, normalizedDescriptionDe, normalizedDescriptionEn, active || true]
     );
     
     res.status(201).json({ 
@@ -59,10 +67,18 @@ router.post('/', adminAuth, async (req, res) => {
 router.put('/:id', adminAuth, async (req, res) => {
   try {
     const { title_de, title_en, description_de, description_en, active } = req.body;
+    const normalizedTitleDe = String(title_de || '').trim();
+    const normalizedTitleEn = String(title_en || '').trim() || normalizedTitleDe;
+    const normalizedDescriptionDe = String(description_de || '').trim() || null;
+    const normalizedDescriptionEn = String(description_en || '').trim() || null;
+
+    if (!normalizedTitleDe) {
+      return res.status(400).json({ message: 'Deutscher Titel ist erforderlich' });
+    }
     
     const [result] = await db.query(
       'UPDATE courses SET title_de = ?, title_en = ?, description_de = ?, description_en = ?, active = ? WHERE id = ?',
-      [title_de, title_en, description_de, description_en, active, req.params.id]
+      [normalizedTitleDe, normalizedTitleEn, normalizedDescriptionDe, normalizedDescriptionEn, active, req.params.id]
     );
     
     if (result.affectedRows === 0) {

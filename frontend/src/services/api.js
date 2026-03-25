@@ -1,6 +1,33 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000/api';
+const SERVER_URL = String(process.env.SERVER_URL || '').trim();
+const SERVER_PORT = String(process.env.SERVER_PORT || '').trim();
+
+function buildApiUrl() {
+  const hasProtocol = /^https?:\/\//i.test(SERVER_URL);
+  const base = SERVER_URL
+    ? (hasProtocol ? SERVER_URL : `${window.location.protocol}//${SERVER_URL}`)
+    : `${window.location.protocol}//${window.location.hostname}`;
+
+  try {
+    const parsed = new URL(base);
+
+    if (SERVER_PORT) {
+      parsed.port = SERVER_PORT;
+    } else if (!parsed.port && window.location.port) {
+      parsed.port = window.location.port;
+    }
+
+    parsed.pathname = '/api';
+    parsed.search = '';
+    parsed.hash = '';
+    return parsed.toString().replace(/\/$/, '');
+  } catch (error) {
+    return '/api';
+  }
+}
+
+const API_URL = buildApiUrl();
 
 const api = axios.create({
   baseURL: API_URL,
@@ -9,12 +36,16 @@ const api = axios.create({
   }
 });
 
-// Interceptor für Admin-Token
+// Interceptor für Auth-Token
 api.interceptors.request.use(config => {
-  const adminToken = localStorage.getItem('adminToken');
-  if (adminToken && config.url.includes('/admin')) {
-    config.headers.Authorization = `Bearer ${adminToken}`;
+  const authToken = localStorage.getItem('authToken')
+    || localStorage.getItem('adminToken')
+    || localStorage.getItem('userToken');
+
+  if (authToken) {
+    config.headers.Authorization = `Bearer ${authToken}`;
   }
+
   return config;
 });
 
@@ -93,12 +124,26 @@ export default {
     return api.delete(`/admin/persons/${id}`);
   },
 
-  // Admin
-  adminLogin(credentials) {
-    return api.post('/admin/login', credentials);
+  // Login (User + Admin)
+  login(credentials) {
+    return api.post('/auth/login', credentials);
   },
   getAdminDashboard() {
     return api.get('/admin/dashboard');
+  },
+
+  // Legacy aliases
+  adminLogin(credentials) {
+    return api.post('/auth/login', credentials);
+  },
+  userLogin(credentials) {
+    return api.post('/auth/login', credentials);
+  },
+  getCurrentUser() {
+    return api.get('/auth/me');
+  },
+  getMyRegistrations() {
+    return api.get('/registrations/me');
   },
 
   searchPersons(query) {

@@ -17,7 +17,7 @@ CREATE TABLE persons (
 CREATE TABLE courses (
     id INT PRIMARY KEY AUTO_INCREMENT,
     title_de VARCHAR(200) NOT NULL,
-    title_en VARCHAR(200) NOT NULL,
+    title_en VARCHAR(200),
     description_de TEXT,
     description_en TEXT,
     active BOOLEAN DEFAULT TRUE,
@@ -38,13 +38,17 @@ CREATE TABLE sessions (
 -- Tabelle für Anmeldungen
 CREATE TABLE registrations (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    person_id INT NOT NULL,
+    person_id INT,
     session_id INT NOT NULL,
+    user_sub VARCHAR(255),
+    user_email VARCHAR(255),
+    user_display_name VARCHAR(255),
     registration_ip VARCHAR(45) NOT NULL,
     registration_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE,
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
-    UNIQUE KEY (person_id, session_id)
+    UNIQUE KEY uq_registrations_user_sub_session (user_sub, session_id),
+    KEY idx_registrations_user_email (user_email)
 );
 
 -- Tabelle für Administratoren

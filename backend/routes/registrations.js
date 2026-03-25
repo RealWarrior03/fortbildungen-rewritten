@@ -2,17 +2,20 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 const adminAuth = require('../middleware/adminAuth');
-const ipCheck = require('../middleware/ipCheck');
+const userAuth = require('../middleware/userAuth');
 
 // Alle Anmeldungen abrufen (nur Admin)
 router.get('/', adminAuth, async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT r.*, p.name, p.email, p.department, 
+      SELECT r.*, 
+        COALESCE(r.user_display_name, p.name) as name,
+        COALESCE(r.user_email, p.email) as email,
+        p.department,
              s.date_time, s.location, 
              c.title_de, c.title_en
       FROM registrations r
-      JOIN persons p ON r.person_id = p.id
+      LEFT JOIN persons p ON r.person_id = p.id
       JOIN sessions s ON r.session_id = s.id
       JOIN courses c ON s.course_id = c.id
       ORDER BY r.registration_time DESC
@@ -28,9 +31,12 @@ router.get('/', adminAuth, async (req, res) => {
 router.get('/session/:sessionId', adminAuth, async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT r.*, p.name, p.email, p.department
+      SELECT r.*, 
+             COALESCE(r.user_display_name, p.name) as name,
+             COALESCE(r.user_email, p.email) as email,
+             p.department
       FROM registrations r
-      JOIN persons p ON r.person_id = p.id
+      LEFT JOIN persons p ON r.person_id = p.id
       WHERE r.session_id = ?
       ORDER BY r.registration_time
     `, [req.params.sessionId]);
@@ -47,12 +53,12 @@ router.get('/person/:email', async (req, res) => {
     const [rows] = await db.query(`
       SELECT r.*, s.date_time, s.location, c.title_de, c.title_en
       FROM registrations r
-      JOIN persons p ON r.person_id = p.id
       JOIN sessions s ON r.session_id = s.id
       JOIN courses c ON s.course_id = c.id
-      WHERE p.email = ?
+      LEFT JOIN persons p ON r.person_id = p.id
+      WHERE r.user_email = ? OR p.email = ?
       ORDER BY s.date_time
-    `, [req.params.email]);
+    `, [req.params.email, req.params.email]);
     res.json(rows);
   } catch (error) {
     console.error('Fehler beim Abrufen der Anmeldungen:', error);
@@ -60,15 +66,57 @@ router.get('/person/:email', async (req, res) => {
   }
 });
 
+// Eigene Anmeldungen des eingeloggten Benutzers abrufen
+router.get('/me', userAuth, async (req, res) => {
+  try {
+    const userEmail = String(req.userData.email || '').trim();
+    const userSub = String(req.userData.subject || '').trim();
+
+    if (!userSub && !userEmail) {
+      return res.status(400).json({ message: 'Im Token fehlt eine eindeutige Benutzeridentitaet.' });
+    }
+
+    const conditions = [];
+    const params = [];
+
+    if (userSub) {
+      conditions.push('r.user_sub = ?');
+      params.push(userSub);
+    }
+
+    if (userEmail) {
+      conditions.push('r.user_email = ?');
+      params.push(userEmail);
+    }
+
+    const [rows] = await db.query(`
+      SELECT r.*, s.date_time, s.location, c.title_de, c.title_en
+      FROM registrations r
+      JOIN sessions s ON r.session_id = s.id
+      JOIN courses c ON s.course_id = c.id
+      WHERE ${conditions.join(' OR ')}
+      ORDER BY s.date_time
+    `, params);
+
+    res.json(rows);
+  } catch (error) {
+    console.error('Fehler beim Abrufen der eigenen Anmeldungen:', error);
+    res.status(500).json({ message: 'Server-Fehler beim Abrufen der eigenen Anmeldungen' });
+  }
+});
+
 // Einzelne Anmeldung abrufen
 router.get('/:id', async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT r.*, p.name, p.email, p.department, 
+      SELECT r.*, 
+        COALESCE(r.user_display_name, p.name) as name,
+        COALESCE(r.user_email, p.email) as email,
+        p.department,
              s.date_time, s.location, s.course_id,
              c.title_de, c.title_en
       FROM registrations r
-      JOIN persons p ON r.person_id = p.id
+      LEFT JOIN persons p ON r.person_id = p.id
       JOIN sessions s ON r.session_id = s.id
       JOIN courses c ON s.course_id = c.id
       WHERE r.id = ?
@@ -86,10 +134,21 @@ router.get('/:id', async (req, res) => {
 });
 
 // Neue Anmeldung erstellen
-router.post('/', async (req, res) => {
+router.post('/', userAuth, async (req, res) => {
   try {
-    const { person_id, session_id } = req.body;
+    const { session_id } = req.body;
     const clientIp = req.clientIp;
+    const userSub = String(req.userData.subject || '').trim();
+    const userEmail = String(req.userData.email || '').trim();
+    const userDisplayName = String(req.userData.displayName || req.userData.username || userEmail).trim();
+
+    if (!session_id) {
+      return res.status(400).json({ message: 'session_id ist erforderlich' });
+    }
+
+    if (!userSub && !userEmail) {
+      return res.status(400).json({ message: 'Im Token fehlt eine eindeutige Benutzeridentitaet.' });
+    }
     
     // Prüfen, ob noch Plätze verfügbar sind
     const [session] = await db.query(
@@ -112,8 +171,10 @@ router.post('/', async (req, res) => {
     
     // Anmeldung erstellen
     const [result] = await db.query(
-      'INSERT INTO registrations (person_id, session_id, registration_ip) VALUES (?, ?, ?)',
-      [person_id, session_id, clientIp]
+      `INSERT INTO registrations 
+       (session_id, registration_ip, user_sub, user_email, user_display_name) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [session_id, clientIp, userSub || null, userEmail || null, userDisplayName || null]
     );
     
     res.status(201).json({ 
@@ -125,7 +186,7 @@ router.post('/', async (req, res) => {
     
     // Prüfen, ob es ein Unique-Key-Constraint-Fehler ist
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({ message: 'Diese Person ist bereits für diesen Termin angemeldet' });
+      return res.status(400).json({ message: 'Sie sind bereits für diesen Termin angemeldet' });
     }
     
     res.status(500).json({ message: 'Server-Fehler beim Erstellen der Anmeldung' });
@@ -133,15 +194,17 @@ router.post('/', async (req, res) => {
 });
 
 // Anmeldung aktualisieren (nur vom selben IP oder Admin)
-router.put('/:id', async (req, res) => {
+router.put('/:id', userAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { session_id } = req.body;
-    const clientIp = req.clientIp;
+    const userSub = String(req.userData.subject || '').trim();
+    const userEmail = String(req.userData.email || '').trim();
+    const isAdmin = Array.isArray(req.userData.roles) && req.userData.roles.includes('admin');
     
     // Prüfen, ob die Anmeldung existiert und vom selben IP kommt
     const [registration] = await db.query(
-      'SELECT registration_ip FROM registrations WHERE id = ?',
+      'SELECT user_sub, user_email FROM registrations WHERE id = ?',
       [id]
     );
     
@@ -149,11 +212,12 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Anmeldung nicht gefunden' });
     }
     
-    // Wenn nicht Admin und nicht vom selben IP, dann Zugriff verweigern
-    const isAdmin = req.headers.authorization && req.headers.authorization.startsWith('Bearer ');
-    if (!isAdmin && registration[0].registration_ip !== clientIp) {
+    const isOwnerBySub = userSub && registration[0].user_sub && registration[0].user_sub === userSub;
+    const isOwnerByEmail = userEmail && registration[0].user_email && registration[0].user_email === userEmail;
+
+    if (!isAdmin && !isOwnerBySub && !isOwnerByEmail) {
       return res.status(403).json({ 
-        message: 'Sie können nur Anmeldungen bearbeiten, die von diesem Computer aus erstellt wurden' 
+        message: 'Sie können nur Ihre eigenen Anmeldungen bearbeiten.' 
       });
     }
     
@@ -194,14 +258,16 @@ router.put('/:id', async (req, res) => {
 });
 
 // Anmeldung löschen (nur vom selben IP oder Admin)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', userAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const clientIp = req.clientIp;
+    const userSub = String(req.userData.subject || '').trim();
+    const userEmail = String(req.userData.email || '').trim();
+    const isAdmin = Array.isArray(req.userData.roles) && req.userData.roles.includes('admin');
     
     // Prüfen, ob die Anmeldung existiert und vom selben IP kommt
     const [registration] = await db.query(
-      'SELECT registration_ip FROM registrations WHERE id = ?',
+      'SELECT user_sub, user_email FROM registrations WHERE id = ?',
       [id]
     );
     
@@ -209,11 +275,12 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Anmeldung nicht gefunden' });
     }
     
-    // Wenn nicht Admin und nicht vom selben IP, dann Zugriff verweigern
-    const isAdmin = req.headers.authorization && req.headers.authorization.startsWith('Bearer ');
-    if (!isAdmin && registration[0].registration_ip !== clientIp) {
+    const isOwnerBySub = userSub && registration[0].user_sub && registration[0].user_sub === userSub;
+    const isOwnerByEmail = userEmail && registration[0].user_email && registration[0].user_email === userEmail;
+
+    if (!isAdmin && !isOwnerBySub && !isOwnerByEmail) {
       return res.status(403).json({ 
-        message: 'Sie können nur Anmeldungen löschen, die von diesem Computer aus erstellt wurden' 
+        message: 'Sie können nur Ihre eigenen Anmeldungen loeschen.' 
       });
     }
     

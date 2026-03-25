@@ -12,16 +12,21 @@ module.exports = (req, res, next) => {
     const token = authHeader.split(' ')[1];
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (!Array.isArray(decodedToken.roles) || !decodedToken.roles.includes('admin')) {
+    const validRoles = Array.isArray(decodedToken.roles)
+      ? decodedToken.roles
+      : [];
+
+    if (!validRoles.includes('user') && !validRoles.includes('admin')) {
       return res.status(403).json({ message: 'Keine Berechtigung' });
     }
 
-    req.adminData = {
+    req.userData = {
       subject: decodedToken.sub,
       username: decodedToken.username,
       displayName: decodedToken.displayName,
+      email: decodedToken.email || '',
       groups: decodedToken.groups || [],
-      roles: decodedToken.roles
+      roles: validRoles
     };
 
     next();
