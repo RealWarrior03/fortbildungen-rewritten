@@ -29,6 +29,7 @@
             <th>Termin</th>
             <th>Ort</th>
             <th>Anmeldung</th>
+            <th>Aktion</th>
           </tr>
         </thead>
         <tbody>
@@ -37,6 +38,20 @@
             <td>{{ formatDateTime(entry.date_time) }}</td>
             <td>{{ entry.location }}</td>
             <td>{{ formatDateTime(entry.registration_time) }}</td>
+            <td>
+              <button
+                class="btn btn-sm btn-outline-danger"
+                :disabled="removingRegistrationId === entry.id"
+                @click="cancelRegistration(entry)"
+              >
+                <span
+                  v-if="removingRegistrationId === entry.id"
+                  class="spinner-border spinner-border-sm me-1"
+                  role="status"
+                ></span>
+                Abmelden
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -53,7 +68,8 @@ export default {
     return {
       loading: true,
       error: null,
-      registrations: []
+      registrations: [],
+      removingRegistrationId: null
     };
   },
   computed: {
@@ -92,6 +108,28 @@ export default {
         dateStyle: 'medium',
         timeStyle: 'short'
       }).format(date);
+    },
+    async cancelRegistration(entry) {
+      const confirmed = window.confirm('Moechten Sie sich von diesem Termin wirklich abmelden?');
+      if (!confirmed) {
+        return;
+      }
+
+      this.removingRegistrationId = entry.id;
+
+      try {
+        await api.deleteRegistration(entry.id);
+        await this.loadRegistrations();
+      } catch (error) {
+        console.error('Fehler beim Abmelden:', error);
+        if (error.response?.data?.message) {
+          this.error = error.response.data.message;
+        } else {
+          this.error = 'Abmeldung konnte nicht durchgeführt werden.';
+        }
+      } finally {
+        this.removingRegistrationId = null;
+      }
     }
   }
 };
