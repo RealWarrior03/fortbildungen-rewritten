@@ -20,6 +20,7 @@ CREATE TABLE courses (
     title_en VARCHAR(200),
     description_de TEXT,
     description_en TEXT,
+    ad_group VARCHAR(255),
     active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

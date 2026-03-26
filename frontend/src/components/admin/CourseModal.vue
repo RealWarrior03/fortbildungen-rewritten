@@ -20,6 +20,19 @@
               <textarea class="form-control" id="description_de" v-model="formData.description_de" rows="3"></textarea>
             </div>
 
+            <div class="mb-3">
+              <label for="ad_group" class="form-label">AD-Gruppe</label>
+              <input
+                type="text"
+                class="form-control"
+                id="ad_group"
+                v-model="formData.ad_group"
+                required
+                placeholder="z. B. fortbildung-it-sicherheit"
+              >
+              <div class="form-text">Nur Benutzer dieser AD-Gruppe sehen und buchen diese Fortbildung.</div>
+            </div>
+
             <div class="form-check mb-3">
               <input type="checkbox" class="form-check-input" id="active" v-model="formData.active">
               <label class="form-check-label" for="active">
@@ -60,6 +73,7 @@ export default {
         title_en: '',
         description_de: '',
         description_en: '',
+        ad_group: '',
         active: true
       }
     };

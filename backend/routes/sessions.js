@@ -2,12 +2,21 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 const adminAuth = require('../middleware/adminAuth');
+const userAuth = require('../middleware/userAuth');
+const { buildCourseAccessWhere } = require('../services/courseAccess');
+
+router.use(userAuth);
 
 // Alle Termine abrufen
 router.get('/', async (req, res) => {
   try {
+    const access = buildCourseAccessWhere(req.userData);
     const [rows] = await db.query(
-      'SELECT s.*, c.title_de, c.title_en FROM sessions s JOIN courses c ON s.course_id = c.id'
+      `SELECT s.*, c.title_de, c.title_en
+       FROM sessions s
+       JOIN courses c ON s.course_id = c.id
+       WHERE c.active = true AND ${access.whereSql}`,
+      access.params
     );
     res.json(rows);
   } catch (error) {
@@ -19,9 +28,16 @@ router.get('/', async (req, res) => {
 // Termine für einen bestimmten Kurs abrufen
 router.get('/course/:courseId', async (req, res) => {
   try {
+    const access = buildCourseAccessWhere(req.userData);
     const [rows] = await db.query(
-      'SELECT * FROM sessions WHERE course_id = ? ORDER BY date_time',
-      [req.params.courseId]
+      `SELECT s.*
+       FROM sessions s
+       JOIN courses c ON s.course_id = c.id
+       WHERE s.course_id = ?
+         AND c.active = true
+         AND ${access.whereSql}
+       ORDER BY s.date_time`,
+      [req.params.courseId, ...access.params]
     );
     res.json(rows);
   } catch (error) {
@@ -33,9 +49,15 @@ router.get('/course/:courseId', async (req, res) => {
 // Einzelnen Termin abrufen
 router.get('/:id', async (req, res) => {
   try {
+    const access = buildCourseAccessWhere(req.userData);
     const [rows] = await db.query(
-      'SELECT * FROM sessions WHERE id = ?',
-      [req.params.id]
+      `SELECT s.*
+       FROM sessions s
+       JOIN courses c ON s.course_id = c.id
+       WHERE s.id = ?
+         AND c.active = true
+         AND ${access.whereSql}`,
+      [req.params.id, ...access.params]
     );
     
     if (rows.length === 0) {
@@ -52,9 +74,15 @@ router.get('/:id', async (req, res) => {
 // Verfügbare Plätze für einen Termin abrufen
 router.get('/:id/available', async (req, res) => {
   try {
+    const access = buildCourseAccessWhere(req.userData);
     const [session] = await db.query(
-      'SELECT max_participants FROM sessions WHERE id = ?',
-      [req.params.id]
+      `SELECT s.max_participants
+       FROM sessions s
+       JOIN courses c ON s.course_id = c.id
+       WHERE s.id = ?
+         AND c.active = true
+         AND ${access.whereSql}`,
+      [req.params.id, ...access.params]
     );
     
     if (session.length === 0) {

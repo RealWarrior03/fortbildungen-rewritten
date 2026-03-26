@@ -45,6 +45,7 @@
           <tr>
             <th>ID</th>
             <th>{{ $t('admin.courses.titleDe') }}</th>
+            <th>AD-Gruppe</th>
             <th>{{ $t('admin.courses.sessions') }}</th>
             <th>{{ $t('admin.courses.status') }}</th>
             <th>{{ $t('admin.actions') }}</th>
@@ -54,6 +55,7 @@
           <tr v-for="course in filteredCourses" :key="course.id">
             <td>{{ course.id }}</td>
             <td>{{ course.title_de }}</td>
+            <td>{{ course.ad_group || '-' }}</td>
             <td>
               <span class="badge bg-primary">
                 {{ course.session_count || 0 }}
@@ -120,6 +122,7 @@ export default {
       return this.courses.filter(course => 
         course.title_de?.toLowerCase().includes(query) ||
         course.title_en?.toLowerCase().includes(query) ||
+        course.ad_group?.toLowerCase().includes(query) ||
         course.description_de?.toLowerCase().includes(query) ||
         course.description_en?.toLowerCase().includes(query)
       );

@@ -3,6 +3,19 @@ const router = express.Router();
 const db = require('../config/database');
 const adminAuth = require('../middleware/adminAuth');
 const userAuth = require('../middleware/userAuth');
+const { canUserAccessCourseByGroup, userHasAdminRole } = require('../services/courseAccess');
+
+async function getSessionAndCourseForAccess(sessionId) {
+  const [rows] = await db.query(
+    `SELECT s.id, s.max_participants, c.id AS course_id, c.active, c.ad_group
+     FROM sessions s
+     JOIN courses c ON s.course_id = c.id
+     WHERE s.id = ?`,
+    [sessionId]
+  );
+
+  return rows[0] || null;
+}
 
 // Alle Anmeldungen abrufen (nur Admin)
 router.get('/', adminAuth, async (req, res) => {
@@ -150,14 +163,18 @@ router.post('/', userAuth, async (req, res) => {
       return res.status(400).json({ message: 'Im Token fehlt eine eindeutige Benutzeridentitaet.' });
     }
     
-    // Prüfen, ob noch Plätze verfügbar sind
-    const [session] = await db.query(
-      'SELECT max_participants FROM sessions WHERE id = ?',
-      [session_id]
-    );
-    
-    if (session.length === 0) {
+    const sessionWithCourse = await getSessionAndCourseForAccess(session_id);
+
+    if (!sessionWithCourse) {
       return res.status(404).json({ message: 'Termin nicht gefunden' });
+    }
+
+    if (!sessionWithCourse.active) {
+      return res.status(400).json({ message: 'Dieser Kurs ist nicht aktiv.' });
+    }
+
+    if (!canUserAccessCourseByGroup(req.userData, sessionWithCourse.ad_group)) {
+      return res.status(403).json({ message: 'Sie sind fuer diese Fortbildung nicht freigeschaltet.' });
     }
     
     const [registrations] = await db.query(
@@ -165,7 +182,7 @@ router.post('/', userAuth, async (req, res) => {
       [session_id]
     );
     
-    if (registrations[0].count >= session[0].max_participants) {
+    if (registrations[0].count >= sessionWithCourse.max_participants) {
       return res.status(400).json({ message: 'Keine freien Plätze mehr verfügbar' });
     }
     
@@ -200,7 +217,7 @@ router.put('/:id', userAuth, async (req, res) => {
     const { session_id } = req.body;
     const userSub = String(req.userData.subject || '').trim();
     const userEmail = String(req.userData.email || '').trim();
-    const isAdmin = Array.isArray(req.userData.roles) && req.userData.roles.includes('admin');
+    const isAdmin = userHasAdminRole(req.userData);
     
     // Prüfen, ob die Anmeldung existiert und vom selben IP kommt
     const [registration] = await db.query(
@@ -221,14 +238,18 @@ router.put('/:id', userAuth, async (req, res) => {
       });
     }
     
-    // Prüfen, ob noch Plätze verfügbar sind
-    const [session] = await db.query(
-      'SELECT max_participants FROM sessions WHERE id = ?',
-      [session_id]
-    );
-    
-    if (session.length === 0) {
+    const sessionWithCourse = await getSessionAndCourseForAccess(session_id);
+
+    if (!sessionWithCourse) {
       return res.status(404).json({ message: 'Termin nicht gefunden' });
+    }
+
+    if (!sessionWithCourse.active) {
+      return res.status(400).json({ message: 'Dieser Kurs ist nicht aktiv.' });
+    }
+
+    if (!canUserAccessCourseByGroup(req.userData, sessionWithCourse.ad_group)) {
+      return res.status(403).json({ message: 'Sie sind fuer diese Fortbildung nicht freigeschaltet.' });
     }
     
     const [registrations] = await db.query(
@@ -236,7 +257,7 @@ router.put('/:id', userAuth, async (req, res) => {
       [session_id]
     );
     
-    if (registrations[0].count >= session[0].max_participants) {
+    if (registrations[0].count >= sessionWithCourse.max_participants) {
       return res.status(400).json({ message: 'Keine freien Plätze mehr verfügbar' });
     }
     
@@ -263,7 +284,7 @@ router.delete('/:id', userAuth, async (req, res) => {
     const { id } = req.params;
     const userSub = String(req.userData.subject || '').trim();
     const userEmail = String(req.userData.email || '').trim();
-    const isAdmin = Array.isArray(req.userData.roles) && req.userData.roles.includes('admin');
+    const isAdmin = userHasAdminRole(req.userData);
     
     // Prüfen, ob die Anmeldung existiert und vom selben IP kommt
     const [registration] = await db.query(

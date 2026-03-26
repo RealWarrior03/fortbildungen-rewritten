@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../../config/database');
 const adminAuth = require('../../middleware/adminAuth');
+const { normalizeGroupName } = require('../../services/courseAccess');
 
 // Alle Routen mit Admin-Auth schützen
 router.use(adminAuth);
@@ -61,6 +62,7 @@ router.post('/', async (req, res) => {
             title_en,
             description_de,
             description_en,
+            ad_group,
             active
         } = req.body;
 
@@ -68,10 +70,15 @@ router.post('/', async (req, res) => {
         const normalizedTitleEn = String(title_en || '').trim() || normalizedTitleDe;
         const normalizedDescriptionDe = String(description_de || '').trim();
         const normalizedDescriptionEn = String(description_en || '').trim() || null;
+        const normalizedAdGroup = normalizeGroupName(ad_group);
 
         // Validierung
         if (!normalizedTitleDe) {
             return res.status(400).json({ message: 'Deutscher Titel ist erforderlich' });
+        }
+
+        if (!normalizedAdGroup) {
+            return res.status(400).json({ message: 'AD-Gruppe ist erforderlich' });
         }
 
         const [result] = await db.query(`
@@ -80,13 +87,15 @@ router.post('/', async (req, res) => {
                 title_en, 
                 description_de, 
                 description_en, 
+                ad_group,
                 active
-            ) VALUES (?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?)
         `, [
             normalizedTitleDe,
             normalizedTitleEn,
             normalizedDescriptionDe || null,
             normalizedDescriptionEn,
+            normalizedAdGroup,
             active !== undefined ? active : true
         ]);
 
@@ -106,6 +115,7 @@ router.put('/:id', async (req, res) => {
             title_en,
             description_de,
             description_en,
+            ad_group,
             active
         } = req.body;
 
@@ -113,10 +123,15 @@ router.put('/:id', async (req, res) => {
         const normalizedTitleEn = String(title_en || '').trim() || normalizedTitleDe;
         const normalizedDescriptionDe = String(description_de || '').trim();
         const normalizedDescriptionEn = String(description_en || '').trim() || null;
+        const normalizedAdGroup = normalizeGroupName(ad_group);
 
         // Validierung
         if (!normalizedTitleDe) {
             return res.status(400).json({ message: 'Deutscher Titel ist erforderlich' });
+        }
+
+        if (!normalizedAdGroup) {
+            return res.status(400).json({ message: 'AD-Gruppe ist erforderlich' });
         }
 
         await db.query(`
@@ -126,6 +141,7 @@ router.put('/:id', async (req, res) => {
                 title_en = ?,
                 description_de = ?,
                 description_en = ?,
+                ad_group = ?,
                 active = ?
             WHERE id = ?
         `, [
@@ -133,6 +149,7 @@ router.put('/:id', async (req, res) => {
             normalizedTitleEn,
             normalizedDescriptionDe || null,
             normalizedDescriptionEn,
+            normalizedAdGroup,
             active !== undefined ? active : true,
             req.params.id
         ]);
